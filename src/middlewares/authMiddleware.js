@@ -5,9 +5,14 @@
  *
  * Required headers:
  *   Authorization: Bearer <API_KEY>
- *   X-Client-ID: <client_id>
+ *   X-Client-ID: <client_id>         (optional — validated if present)
  *
- * On success, attaches `req.user` with { userId, apiKey, credits, clientId }.
+ * On success, attaches:
+ *   req.user = { userId, apiKey, credits, clientId, role }
+ *   req.instruction   — from X-Instruction header
+ *   req.textOverlay   — from X-TextOverlay header
+ *
+ * Role values: 'admin' | 'user' | 'client'
  */
 
 import { findUserByApiKey } from '../services/creditService.js';
@@ -45,7 +50,7 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // ── 4. Validate X-Client-ID header ─────────────────────────
+    // ── 4. Validate X-Client-ID header (if provided) ──────────
     const clientId = req.headers['x-client-id'];
 
     if (clientId && clientId !== user.clientId) {
@@ -55,15 +60,16 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // ── 5. Attach user to request ──────────────────────────────
+    // ── 5. Attach user to request (including role) ─────────────
     req.user = {
       userId: user.userId,
       apiKey: user.apiKey,
       credits: user.credits,
       clientId: user.clientId,
+      role: user.role || 'user',   // Default to 'user' if no role field exists
     };
 
-    // Also forward custom headers for downstream controllers
+    // Forward custom headers for downstream controllers
     req.instruction = req.headers['x-instruction'] || '';
     req.textOverlay = req.headers['x-textoverlay'] || '';
 
